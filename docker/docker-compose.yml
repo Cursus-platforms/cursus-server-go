@@ -4,9 +4,9 @@ services:
     image: postgres:15
     container_name: postgres
     environment:
-      POSTGRES_USER: "baonhat"
-      POSTGRES_PASSWORD: "123456"
-      POSTGRES_DB: "cursus"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASS}
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
     ports:
       - "5433:5432"
     volumes:
@@ -24,5 +24,26 @@ services:
     depends_on:
       - postgres
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --requirepass "${REDIS_PASS}"
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+      - REDIS_PASSWORD=${REDIS_PASS}
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+
 volumes:
   postgres_data:
+  redis_data:
