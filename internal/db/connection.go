@@ -16,11 +16,11 @@ func Connect() (*sql.DB, error) {
 		fmt.Println("Warning: .env file not found, reading from environment")
 	}
 
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	pass := os.Getenv("DB_PASS")
-	name := os.Getenv("DB_NAME")
+	host := os.Getenv("POSTGRES_HOST")
+	port := os.Getenv("POSTGRES_PORT")
+	user := os.Getenv("POSTGRES_USER")
+	pass := os.Getenv("POSTGRES_PASS")
+	name := os.Getenv("POSTGRES_DB_NAME")
 
 	if host == "" || port == "" || user == "" || name == "" {
 		return nil, fmt.Errorf("DB environment variables not fully set")
