@@ -1,15 +1,37 @@
-// File: cmd/api/main.go
 package main
 
 import (
 	"log"
 	"net/http"
 
-	"github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/Cursus-platforms/cursus-server-go/docs"
+	_ "github.com/jackc/pgx/v5/stdlib"
+
+	"github.com/Cursus-platforms/cursus-server-go/internal/auth"
 	"github.com/Cursus-platforms/cursus-server-go/internal/db"
+	"github.com/Cursus-platforms/cursus-server-go/internal/redis"
+	"github.com/Cursus-platforms/cursus-server-go/internal/role"
+	"github.com/Cursus-platforms/cursus-server-go/internal/router"
+	"github.com/Cursus-platforms/cursus-server-go/internal/user"
 )
 
+// @title           E-Learning Platform API
+// @version         1.0
+// @description     This is the API documentation for the E-Learning project.
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   Your Name
+// @contact.url    http://www.your-website.com
+// @contact.email  your.email@example.com
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      localhost:8080
+// @BasePath  /api/v1
+
 func main() {
+	//Connect Postgres db
 	dbConn, err := db.Connect()
 	if err != nil {
 		log.Fatalf("FATAL: Could not connect to database: %v", err)
@@ -17,10 +39,32 @@ func main() {
 	log.Println("✅ Successfully connected to the database!")
 	defer dbConn.Close()
 
-	mainRouter := router.NewRouter(productHandler)
+	//Connect Redis db
+	rdb, err := redis.Connect()
+	if err != nil {
+		log.Fatal("FATAL: Could not connected to Redis!")
+	}
+	defer rdb.Close()
 
-	port := ":8080" 
+	//Init repositories
+	userRepo := user.NewRepository(dbConn)
+	roleRepo := role.NewRepository(dbConn)
+
+	//Init services
+	authSvc := auth.NewService(userRepo, roleRepo)
+
+	//Init handlers
+	authHandler := auth.NewHandler(authSvc)
+
+	allHandler := router.HandleDependencies{
+		AuthHandler: authHandler,
+	}
+
+	mainRouter := router.NewRouter(allHandler)
+
+	port := ":8080"
 	log.Printf("Starting REST API server on http://localhost%s\n", port)
+	log.Printf("Swagger docs available at http://localhost%s/swagger/index.html", port)
 
 	err = http.ListenAndServe(port, mainRouter)
 	if err != nil {
