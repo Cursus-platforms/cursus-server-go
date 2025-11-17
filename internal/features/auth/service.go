@@ -6,11 +6,12 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Cursus-platforms/cursus-server-go/internal/model"
-	"github.com/Cursus-platforms/cursus-server-go/internal/role"
-	"github.com/Cursus-platforms/cursus-server-go/internal/user"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/Cursus-platforms/cursus-server-go/internal/features/role"
+	"github.com/Cursus-platforms/cursus-server-go/internal/features/user"
+	"github.com/Cursus-platforms/cursus-server-go/internal/model"
 )
 
 var (

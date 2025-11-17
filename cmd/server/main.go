@@ -7,12 +7,12 @@ import (
 	_ "github.com/Cursus-platforms/cursus-server-go/docs"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/Cursus-platforms/cursus-server-go/internal/auth"
-	"github.com/Cursus-platforms/cursus-server-go/internal/db"
-	"github.com/Cursus-platforms/cursus-server-go/internal/redis"
-	"github.com/Cursus-platforms/cursus-server-go/internal/role"
-	"github.com/Cursus-platforms/cursus-server-go/internal/router"
-	"github.com/Cursus-platforms/cursus-server-go/internal/user"
+	"github.com/Cursus-platforms/cursus-server-go/internal/features/auth"
+	"github.com/Cursus-platforms/cursus-server-go/internal/features/role"
+	"github.com/Cursus-platforms/cursus-server-go/internal/features/user"
+	"github.com/Cursus-platforms/cursus-server-go/internal/infrastructure/db"
+	"github.com/Cursus-platforms/cursus-server-go/internal/infrastructure/redis"
+	"github.com/Cursus-platforms/cursus-server-go/internal/infrastructure/router"
 )
 
 // @title           E-Learning Platform API

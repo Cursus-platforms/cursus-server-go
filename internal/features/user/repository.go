@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/Cursus-platforms/cursus-server-go/internal/model"
 	"github.com/google/uuid"
+
+	"github.com/Cursus-platforms/cursus-server-go/internal/model"
 )
 
 type Repository interface {

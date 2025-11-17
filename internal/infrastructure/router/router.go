@@ -3,10 +3,11 @@ package router
 import (
 	"net/http"
 
-	"github.com/Cursus-platforms/cursus-server-go/internal/auth"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	httpSwagger "github.com/swaggo/http-swagger"
+
+	"github.com/Cursus-platforms/cursus-server-go/internal/features/auth"
 )
 
 type HandleDependencies struct {
