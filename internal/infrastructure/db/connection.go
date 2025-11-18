@@ -2,15 +2,16 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 	"time"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 )
 
-func Connect() (*sql.DB, error) {
+func Connect() (*sqlx.DB, error) {
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Println("Warning: .env file not found, reading from environment")
@@ -28,8 +29,8 @@ func Connect() (*sql.DB, error) {
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, port, name)
 
-	var db *sql.DB
-	db, err = sql.Open("pgx", dsn)
+	var db *sqlx.DB
+	db, err = sqlx.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open DB connection: %w", err)
 	}

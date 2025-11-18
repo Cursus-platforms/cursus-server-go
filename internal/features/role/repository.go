@@ -2,9 +2,9 @@ package role
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/Cursus-platforms/cursus-server-go/internal/model"
 )
@@ -15,10 +15,10 @@ type Repository interface {
 }
 
 type repository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewRepository(db *sql.DB) Repository {
+func NewRepository(db *sqlx.DB) Repository {
 	return &repository{db: db}
 }
 

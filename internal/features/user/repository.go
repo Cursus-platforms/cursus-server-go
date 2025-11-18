@@ -2,9 +2,9 @@ package user
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/Cursus-platforms/cursus-server-go/internal/model"
 )
@@ -16,10 +16,10 @@ type Repository interface {
 }
 
 type repository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewRepository(db *sql.DB) Repository {
+func NewRepository(db *sqlx.DB) Repository {
 	return &repository{db: db}
 }
 
@@ -28,13 +28,15 @@ func (r *repository) Create(ctx context.Context, user model.User) (model.User, e
 			VALUES ($1, $2, $3, $4)
 			RETURN id, created_at, updated_at`
 
-	err := r.db.QueryRowContext(ctx, query, user.Fullname, user.Email, user.Password, user.RoleID).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+	var createdUser model.User
+
+	err := r.db.QueryRowxContext(ctx, query, user.Fullname, user.Email, user.Password, user.RoleID).StructScan(&createdUser)
 
 	if err != nil {
 		return model.User{}, err
 	}
 
-	return user, nil
+	return createdUser, nil
 }
 
 func (r *repository) GetByEmail(ctx context.Context, email string) (model.User, error) {
@@ -42,10 +44,7 @@ func (r *repository) GetByEmail(ctx context.Context, email string) (model.User, 
 	query := `SELECT id, fullname, email, password, role_id, created_at, updated_at 
 				FROM users WHERE email=$1`
 
-	err := r.db.QueryRowContext(ctx, query, email).Scan(
-		&user.ID, &user.Fullname, &user.Email, &user.Password,
-		&user.RoleID, &user.CreatedAt, &user.UpdatedAt,
-	)
+	err := r.db.GetContext(ctx, &user, query, email)
 
 	if err != nil {
 		return model.User{}, err
@@ -58,7 +57,7 @@ func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (model.User, err
 	var user model.User
 	query := `SELECT id, fullname, email, role_id, created_at, updated_at, FROM users WHERE id = $1`
 
-	err := r.db.QueryRowContext(ctx, query, id).Scan(&user.ID, &user.Fullname, &user.Email, &user.RoleID, &user.CreatedAt, &user.UpdatedAt)
+	err := r.db.GetContext(ctx, &user, query, id)
 
 	if err != nil {
 		return model.User{}, err

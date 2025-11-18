@@ -6,6 +6,7 @@ import (
 
 	_ "github.com/Cursus-platforms/cursus-server-go/docs"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/Cursus-platforms/cursus-server-go/internal/features/auth"
 	"github.com/Cursus-platforms/cursus-server-go/internal/features/role"
@@ -29,6 +30,8 @@ import (
 
 // @host      localhost:8080
 // @BasePath  /api/v1
+
+var dbConn *sqlx.DB
 
 func main() {
 	//Connect Postgres db
