@@ -30,7 +30,7 @@ func (r *repository) Create(ctx context.Context, user model.User) (model.User, e
 
 	var createdUser model.User
 
-	err := r.db.QueryRowxContext(ctx, query, user.Fullname, user.Email, user.Password, user.RoleID).StructScan(&createdUser)
+	err := r.db.QueryRowxContext(ctx, query, user.FullName, user.Email, user.Password, user.RoleID).StructScan(&createdUser)
 
 	if err != nil {
 		return model.User{}, err

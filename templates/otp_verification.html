@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>321321</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .email-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .email-header {
+            text-align: center;
+            background-color: red;
+            color: #ffffff;
+            padding: 15px 0;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        .email-body {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .otp-code {
+            font-size: 24px;
+            font-weight: bold;
+            color: red;
+            letter-spacing: 2px;
+        }
+
+        .email-footer {
+            text-align: center;
+            font-size: 12px;
+            color: #777777;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="email-container">
+    <div class="email-header">
+        <h1>Wellcome to Cursus</h1>
+    </div>
+    <div class="email-body">
+        <p style="font-weight: 600; font-size: 20px;">Dear {{name}},</p>
+        <p style="font-size: 19px;">Your OTP code is:</p>
+        <div class="otp-code">{{codeOTP}}</div>
+        <p style="font-size: 19px;">This OTP will expire in 5 minutes.</p>
+    </div>
+    <div class="email-footer">
+        <p>If you didn’t request this OTP, please ignore this email.</p>
+        <p>Thank you for using our service!</p>
+    </div>
+</div>
+</body>
+
+</html>

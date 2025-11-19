@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	_ "github.com/Cursus-platforms/cursus-server-go/docs"
+	"github.com/Cursus-platforms/cursus-server-go/internal/infrastructure/mailer"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 
@@ -39,7 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("FATAL: Could not connect to database: %v", err)
 	}
-	log.Println("✅ Successfully connected to the database!")
+	log.Println("Successfully connected to the database!")
 	defer dbConn.Close()
 
 	//Connect Redis db
@@ -49,12 +50,15 @@ func main() {
 	}
 	defer rdb.Close()
 
+	//Init mailer service
+	mailSvc := mailer.NewSMTPMailer()
+
 	//Init repositories
 	userRepo := user.NewRepository(dbConn)
 	roleRepo := role.NewRepository(dbConn)
 
 	//Init services
-	authSvc := auth.NewService(userRepo, roleRepo)
+	authSvc := auth.NewService(userRepo, roleRepo, rdb, mailSvc)
 
 	//Init handlers
 	authHandler := auth.NewHandler(authSvc)
