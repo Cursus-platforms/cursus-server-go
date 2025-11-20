@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Cursus-platforms/cursus-server-go/internal/infrastructure/httputil"
+	v "github.com/Cursus-platforms/cursus-server-go/internal/infrastructure/validator"
 	"github.com/Cursus-platforms/cursus-server-go/internal/lib/response"
 )
 
@@ -20,9 +21,9 @@ func NewHandler(s Service) *Handler {
 
 // Register handler
 type registerRequest struct {
-	FullName string
-	Email    string
-	Password string
+	FullName string `json:"fullname" validate:"required"`
+	Email    string `json:"password" validate:"required,min=8,max=50"`
+	Password string `json:"email" validate:"required,email"`
 }
 
 // HandleRegister @Summary      Register a new user
@@ -43,7 +44,15 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.svc.Register(r.Context(), req.FullName, req.Email, req.Password)
+	if err := v.GlobalValidator.Struct(req); err != nil {
+		// Tạo mảng lỗi chi tiết để trả về theo best practice
+		validationErrors := formatValidationErrors(err) // Hàm helper mới
+
+		response.RespondWithError(w, http.StatusBadRequest, "Input validation failed", validationErrors)
+		return
+	}
+
+	user, err := h.svc.VerifyAndRegister(r.Context(), req.FullName, req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrUserExisted) {
 			response.RespondWithError(w, http.StatusConflict, err.Error())

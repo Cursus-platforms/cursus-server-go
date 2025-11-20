@@ -6,6 +6,18 @@ import (
 	"net/http"
 )
 
+type ValidationErrorDetail struct {
+	Field string `json:"field"`
+	Error string `json:"error"`
+}
+
+type StructuredErrorResponse struct {
+	Message string `json:"message"`
+	Code    string `json:"code,omitempty"`
+
+	Details []ValidationErrorDetail `json:"details,omitempty"`
+}
+
 func RespondWithJSON(w http.ResponseWriter, status int, payload interface{}) {
 	response, err := json.Marshal(payload)
 	if err != nil {
@@ -20,6 +32,14 @@ func RespondWithJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Write(response)
 }
 
-func RespondWithError(w http.ResponseWriter, status int, message string) {
-	RespondWithJSON(w, status, map[string]string{"error": message})
+func RespondWithError(w http.ResponseWriter, status int, message string, details []ValidationErrorDetail) {
+	errorPayload := StructuredErrorResponse{
+		Message: message,
+	}
+
+	if len(details) > 0 {
+		errorPayload.Details = details
+	}
+
+	RespondWithJSON(w, status, errorPayload)
 }

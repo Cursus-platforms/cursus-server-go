@@ -27,7 +27,7 @@ const (
 )
 
 var (
-	ErrUserExisted         = errors.New("user aldready exists with this mail")
+	ErrUserExisted         = errors.New("user already exists with this mail")
 	ErrUserNotFound        = errors.New("user not found")
 	ErrInvalidCredentials  = errors.New("invalid email or password")
 	ErrInvalidRefreshToken = errors.New("invalid or expired refresh token")
@@ -200,9 +200,9 @@ func (s *service) Login(ctx context.Context, email, password string) (string, st
 
 	var roleName = model.ROLE_STUDENT
 	if foundUser.RoleID != nil {
-		role, err := s.roleRepo.GetByID(ctx, *foundUser.RoleID)
+		roles, err := s.roleRepo.GetByID(ctx, *foundUser.RoleID)
 		if err == nil {
-			roleName = role.Name
+			roleName = roles.Name
 		}
 	}
 
