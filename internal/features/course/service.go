@@ -16,7 +16,7 @@ import (
 	"github.com/Cursus-platforms/cursus-server-go/internal/model"
 )
 
-const CourseCacheDuration = 30 * time.Minute
+const CacheDuration = 30 * time.Minute
 
 type Service interface {
 	CreateCourse(ctx context.Context, course model.Course) (model.Course, error)
@@ -88,7 +88,7 @@ func (s *service) GetCourseByID(ctx context.Context, id uuid.UUID) (model.Course
 	if course.Status == "approved" {
 		jsonData, err := json.Marshal(course)
 		if err == nil {
-			s.rdb.Set(ctx, cacheKey, jsonData, CourseCacheDuration)
+			s.rdb.Set(ctx, cacheKey, jsonData, CacheDuration)
 			log.Printf("CACHE REFRESHED: Course %s", id.String())
 		}
 	}

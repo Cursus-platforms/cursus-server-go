@@ -19,64 +19,79 @@ func NewHandler(s Service) *Handler {
 	return &Handler{svc: s}
 }
 
-// Register handler
-type registerRequest struct {
-	FullName string `json:"fullname" validate:"required"`
-	Email    string `json:"password" validate:"required,min=8,max=50"`
-	Password string `json:"email" validate:"required,email"`
-}
-
-// HandleRegister @Summary      Register a new user
-// @Description  Creates a new user account with fullname, email, and password
+// HandleRequestVerification @Summary Yêu cầu mã xác minh Email
+// @Description Nhận thông tin đăng ký, gửi mã OTP và lưu tạm thời dữ liệu user vào Redis.
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Param        registerBody  body  registerRequest  true  "User registration information"
-// @Success      201  {object}  model.User  "Account created successfully (Returns user info WITHOUT password)"
-// @Failure      400  {object}  map[string]string "Invalid request body"
-// @Failure      409  {object}  map[string]string "Email already exists"
-// @Failure      500  {object}  map[string]string "Internal server error"
+// @Param        requestBody  body  registerRequest  true  "Thông tin đăng ký"
+// @Success      202  {object}  map[string]string "OTP đã được gửi thành công"
+// @Failure      400  {object}  response.StructuredErrorResponse "Lỗi validation"
+// @Failure      409  {object}  map[string]string "Email đã tồn tại"
 // @Router       /api/v1/auth/register [post]
-func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleRequestVerification(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body")
+		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body format", nil)
 		return
 	}
 
 	if err := v.GlobalValidator.Struct(req); err != nil {
-		// Tạo mảng lỗi chi tiết để trả về theo best practice
-		validationErrors := formatValidationErrors(err) // Hàm helper mới
-
+		validationErrors := v.FormatValidationErrors(err)
 		response.RespondWithError(w, http.StatusBadRequest, "Input validation failed", validationErrors)
 		return
 	}
 
-	user, err := h.svc.VerifyAndRegister(r.Context(), req.FullName, req.Email, req.Password)
+	err := h.svc.RequestVerification(r.Context(), req.FullName, req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrUserExisted) {
-			response.RespondWithError(w, http.StatusConflict, err.Error())
-		} else {
-			response.RespondWithError(w, http.StatusInternalServerError, "Failed to register user")
+			response.RespondWithError(w, http.StatusConflict, err.Error(), nil)
+			return
 		}
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to send verification code", nil)
+		return
+	}
+
+	response.RespondWithJSON(w, http.StatusAccepted, map[string]string{"message": "OTP sent to email. Please verify."})
+}
+
+// HandleVerifyAndRegister @Summary Xác minh OTP và hoàn tất đăng ký
+// @Description Xác minh OTP nhận được và lưu dữ liệu người dùng vào Postgres vĩnh viễn.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        verifyBody  body  verifyRequest  true  "Email và mã OTP"
+// @Success      201  {object}  map[string]string "Tài khoản được tạo thành công"
+// @Failure      401  {object}  map[string]string "OTP không hợp lệ/hết hạn"
+// @Failure      500  {object}  map[string]string "Lỗi server nội bộ"
+// @Router       /api/v1/auth/verify [post]
+func (h *Handler) HandleVerifyAndRegister(w http.ResponseWriter, r *http.Request) {
+	var req verifyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body format", nil)
+		return
+	}
+
+	if err := v.GlobalValidator.Struct(req); err != nil {
+		validationErrors := v.FormatValidationErrors(err)
+		response.RespondWithError(w, http.StatusBadRequest, "Input validation failed", validationErrors)
+		return
+	}
+
+	user, err := h.svc.VerifyAndRegister(r.Context(), req.Email, req.OTP)
+	if err != nil {
+		if errors.Is(err, ErrInvalidOTP) {
+			response.RespondWithError(w, http.StatusUnauthorized, err.Error(), nil)
+			return
+		}
+		response.RespondWithError(w, http.StatusInternalServerError, "Registration finalization failed", nil)
 		return
 	}
 
 	response.RespondWithJSON(w, http.StatusCreated, user)
 }
 
-// Login handler
-type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type loginResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-}
-
-// HandleLogin @Summary      User login
+// HandleLogin @Summary User login
 // @Description  Authenticates user credentials, returns Access Token (JSON body), and sets Refresh Token (HTTP-Only Cookie)
 // @Tags         Auth
 // @Accept       json
@@ -89,16 +104,16 @@ type loginResponse struct {
 func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body")
+		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body format", nil)
 		return
 	}
 
 	accessToken, refreshToken, err := h.svc.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
-			response.RespondWithError(w, http.StatusUnauthorized, err.Error())
+			response.RespondWithError(w, http.StatusUnauthorized, err.Error(), nil)
 		} else {
-			response.RespondWithError(w, http.StatusInternalServerError, err.Error())
+			response.RespondWithError(w, http.StatusInternalServerError, err.Error(), nil)
 		}
 		return
 	}
@@ -122,7 +137,7 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
-		response.RespondWithError(w, http.StatusUnauthorized, "Missing refresh token.")
+		response.RespondWithError(w, http.StatusUnauthorized, "Missing refresh token.", nil)
 		return
 	}
 
@@ -130,8 +145,8 @@ func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 
 	newAT, newRT, err := h.svc.Refresh(r.Context(), refreshTokenString)
 	if err != nil {
-		httputil.SetRefreshTokenCookie(w, "", -time.Hour)
-		response.RespondWithError(w, http.StatusUnauthorized, "Refresh token is invalid or expired")
+		httputil.SetRefreshTokenCookie(w, "", -time.Hour) // Xóa cookie cũ
+		response.RespondWithError(w, http.StatusUnauthorized, "Refresh token is invalid or expired", nil)
 		return
 	}
 

@@ -4,16 +4,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
-	"github.com/Cursus-platforms/cursus-server-go/internal/lib/response"
-	"github.com/Cursus-platforms/cursus-server-go/internal/model"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/Cursus-platforms/cursus-server-go/internal/infrastructure/middleware"
 	v "github.com/Cursus-platforms/cursus-server-go/internal/infrastructure/validator"
-	validator "github.com/go-playground/validator/v10"
+	"github.com/Cursus-platforms/cursus-server-go/internal/lib/response"
+	"github.com/Cursus-platforms/cursus-server-go/internal/model"
 )
 
 type Handler struct {
@@ -24,27 +23,7 @@ func NewHandler(s Service) *Handler {
 	return &Handler{svc: s}
 }
 
-type createCourseRequest struct {
-	Title         string  `json:"title" validate:"required"`
-	Description   *string `json:"description,omitempty"`
-	Price         float64 `json:"price" validate:"required,gt=0"`
-	SubCategoryID string  `json:"sub_category_id" validate:"required,uuid"`
-}
-
-func formatValidationErrors(err error) []response.ValidationErrorDetail {
-	var details []response.ValidationErrorDetail
-	if fieldErrors, ok := err.(validator.ValidationErrors); ok {
-		for _, e := range fieldErrors {
-			details = append(details, response.ValidationErrorDetail{
-				Field: e.Field(),
-				Error: fmt.Sprintf("Field '%s' failed on the '%s' tag", e.Field(), e.Tag()),
-			})
-		}
-	}
-	return details
-}
-
-// @Summary      Tạo khóa học mới
+// CreateCourse @Summary      Tạo khóa học mới
 // @Description  Tạo khóa học mới (yêu cầu Instructor/Admin)
 // @Tags         Course
 // @Accept       json
@@ -63,7 +42,7 @@ func (h *Handler) CreateCourse(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := v.GlobalValidator.Struct(req); err != nil {
-		validationErrors := formatValidationErrors(err)
+		validationErrors := v.FormatValidationErrors(err)
 		response.RespondWithError(w, http.StatusBadRequest, "Input validation failed", validationErrors)
 		return
 	}
@@ -74,7 +53,7 @@ func (h *Handler) CreateCourse(w http.ResponseWriter, r *http.Request) {
 	subCatID, _ := uuid.Parse(req.SubCategoryID)
 
 	course := model.Course{
-		UserID:        userID,
+		UserID:        &userID,
 		Title:         req.Title,
 		Price:         req.Price,
 		SubCategoryID: &subCatID,
@@ -95,7 +74,7 @@ func (h *Handler) CreateCourse(w http.ResponseWriter, r *http.Request) {
 	response.RespondWithJSON(w, http.StatusCreated, createdCourse)
 }
 
-// @Summary      Lấy thông tin chi tiết khóa học
+// GetCourseByID @Summary      Lấy thông tin chi tiết khóa học
 // @Description  Trả về khóa học theo ID (công khai)
 // @Tags         Course
 // @Produce      json

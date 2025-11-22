@@ -4,21 +4,22 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"net/smtp"
 	"os"
 	"strconv"
-
-	"gopkg.in/gomail.v2"
 )
 
-// Define the template path relative to the project root
+type EmailData struct {
+	Name    string
+	CodeOTP string
+}
+
 const templatePath = "templates/otp_verification.html"
 
-// Mailer interface must be updated to accept the name
 type Mailer interface {
 	SendOTP(recipientEmail, recipientName, otp string) error
 }
 
-// SMTPMailer là triển khai sử dụng gomail
 type SMTPMailer struct {
 	Host     string
 	Port     int
@@ -26,57 +27,61 @@ type SMTPMailer struct {
 	Password string
 }
 
-// NewSMTPMailer khởi tạo Mailer từ biến môi trường
 func NewSMTPMailer() Mailer {
-	// (Bạn PHẢI thêm các biến này vào .env: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
 	port, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
+	if port == 0 {
+		port = 587
+	}
+
 	return &SMTPMailer{
 		Host:     os.Getenv("SMTP_HOST"),
 		Port:     port,
-		Username: os.Getenv("SMTP_USER"),
-		Password: os.Getenv("SMTP_PASS"),
+		Username: os.Getenv("FROM_EMAIL"),
+		Password: os.Getenv("FROM_EMAIL_PASSWORD"),
 	}
-}
-
-type EmailData struct {
-	Name    string
-	CodeOTP string
 }
 
 func (m *SMTPMailer) SendOTP(recipientEmail, recipientName, otp string) error {
-
-	// 1. Load and parse the HTML template
 	t, err := template.ParseFiles(templatePath)
 	if err != nil {
-		return fmt.Errorf("lỗi parse template: %w", err)
+		return fmt.Errorf("mailer: lỗi parse template: %w", err)
 	}
 
-	// 2. Prepare dynamic data
-	data := EmailData{
-		Name:    recipientName,
-		CodeOTP: otp,
-	}
-
-	// 3. Execute the template into a buffer
+	data := EmailData{Name: recipientName, CodeOTP: otp}
 	var body bytes.Buffer
 	if err := t.Execute(&body, data); err != nil {
-		return fmt.Errorf("lỗi execute template: %w", err)
+		return fmt.Errorf("mailer: lỗi execute template: %w", err)
 	}
 
-	// 4. Create the Gomail message
-	msg := gomail.NewMessage()
-	msg.SetHeader("From", m.Username)
-	msg.SetHeader("To", recipientEmail)
-	msg.SetHeader("Subject", "Mã xác minh tài khoản của bạn (OTP)")
+	var msg bytes.Buffer
 
-	// Set the body as HTML
-	msg.SetBody("text/html", body.String()) // <-- Send the rendered HTML
+	fromAddress := os.Getenv("MAIL_FROM_ADDRESS")
+	if fromAddress == "" {
+		fromAddress = m.Username
+	}
 
-	// 5. Send the email (Logic remains the same)
-	d := gomail.NewDialer(m.Host, m.Port, m.Username, m.Password)
+	msg.WriteString(fmt.Sprintf("From: %s\r\n", fromAddress))
+	msg.WriteString(fmt.Sprintf("To: %s\r\n", recipientEmail))
+	msg.WriteString("Subject: Mã xác minh tài khoản của bạn (OTP)\r\n")
+	msg.WriteString("MIME-Version: 1.0\r\n")
+	msg.WriteString("Content-Type: text/html; charset=\"UTF-8\"\r\n")
+	msg.WriteString("\r\n") // Kết thúc Headers
 
-	if err := d.DialAndSend(msg); err != nil {
-		return fmt.Errorf("lỗi gửi email: %w", err)
+	msg.Write(body.Bytes())
+
+	smtpAddr := fmt.Sprintf("%s:%d", m.Host, m.Port)
+	auth := smtp.PlainAuth("", m.Username, m.Password, m.Host)
+
+	err = smtp.SendMail(
+		smtpAddr,
+		auth,
+		fromAddress,
+		[]string{recipientEmail},
+		msg.Bytes(),
+	)
+
+	if err != nil {
+		return fmt.Errorf("mailer: lỗi gửi email qua net/smtp: %w", err)
 	}
 
 	return nil

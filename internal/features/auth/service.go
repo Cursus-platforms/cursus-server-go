@@ -65,11 +65,11 @@ type TempUser struct {
 	OTP      string `json:"otp"`
 }
 
-const OTP_DURATION = 5 * time.Minute // OTP chỉ có giá trị 5 phút
+const OtpDuration = 5 * time.Minute // OTP chỉ có giá trị 5 phút
 
 func (s *service) RequestVerification(ctx context.Context, fullname, email, password string) error {
 	_, err := s.userRepo.GetByEmail(ctx, email)
-	if err == nil || err != sql.ErrNoRows {
+	if err == nil || !errors.Is(err, sql.ErrNoRows) {
 		if err == nil {
 			return ErrUserExisted
 		}
@@ -89,7 +89,7 @@ func (s *service) RequestVerification(ctx context.Context, fullname, email, pass
 	redisKey := fmt.Sprintf("verify:%s", email)
 	tempUserData, _ := json.Marshal(tempUser)
 
-	err = s.rdb.Set(ctx, redisKey, tempUserData, OTP_DURATION).Err()
+	err = s.rdb.Set(ctx, redisKey, tempUserData, OtpDuration).Err()
 	if err != nil {
 		return fmt.Errorf("lỗi lưu Redis: %w", err)
 	}
@@ -112,8 +112,9 @@ func (s *service) VerifyAndRegister(ctx context.Context, email, otp string) (mod
 
 	// 1. LẤY DỮ LIỆU TỪ REDIS
 	val, err := s.rdb.Get(ctx, redisKey).Result()
-	if err == redis.Nil {
-		return model.User{}, ErrInvalidOTP // Key đã hết hạn hoặc không tồn tại
+	switch {
+	case errors.Is(err, redis.Nil):
+		return model.User{}, ErrInvalidOTP
 	}
 	if err != nil {
 		return model.User{}, fmt.Errorf("lỗi đọc Redis: %w", err)
@@ -187,7 +188,7 @@ func (s *service) GenerateTokenPair(userID uuid.UUID, roleName string) (string, 
 func (s *service) Login(ctx context.Context, email, password string) (string, string, error) {
 	foundUser, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return "", "", ErrInvalidCredentials
 		}
 		return "", "", err
@@ -222,7 +223,7 @@ func (s *service) Refresh(ctx context.Context, refreshTokenString string) (strin
 
 	redisKey := fmt.Sprintf("rt:%s:%s", jti, userIDStr)
 	status, err := s.rdb.Get(ctx, redisKey).Result()
-	if err == redis.Nil || status != "valid" {
+	if errors.Is(err, redis.Nil) || status != "valid" {
 		return "", "", ErrInvalidRefreshToken
 	}
 

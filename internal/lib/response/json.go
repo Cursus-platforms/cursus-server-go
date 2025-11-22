@@ -23,13 +23,18 @@ func RespondWithJSON(w http.ResponseWriter, status int, payload interface{}) {
 	if err != nil {
 		log.Printf("ERROR: Failed to marshal JSON response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":"Internal server error"}`))
+		if _, err := w.Write([]byte(`{"error":"Internal server error"}`)); err != nil {
+			log.Printf("CRITICAL WRITE FAILURE: Could not write fallback error to client: %v", err)
+		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	w.Write(response)
+
+	if _, err := w.Write(response); err != nil {
+		log.Printf("CRITICAL WARNING: Failed to write response body to client: %v", err)
+	}
 }
 
 func RespondWithError(w http.ResponseWriter, status int, message string, details []ValidationErrorDetail) {

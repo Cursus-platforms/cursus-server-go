@@ -5,9 +5,11 @@ import (
 	"net/http"
 
 	_ "github.com/Cursus-platforms/cursus-server-go/docs"
+	"github.com/Cursus-platforms/cursus-server-go/internal/features/course"
 	"github.com/Cursus-platforms/cursus-server-go/internal/infrastructure/mailer"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
+	redis2 "github.com/redis/go-redis/v9"
 
 	"github.com/Cursus-platforms/cursus-server-go/internal/features/auth"
 	"github.com/Cursus-platforms/cursus-server-go/internal/features/role"
@@ -32,8 +34,6 @@ import (
 // @host      localhost:8080
 // @BasePath  /api/v1
 
-var dbConn *sqlx.DB
-
 func main() {
 	//Connect Postgres db
 	dbConn, err := db.Connect()
@@ -41,14 +41,24 @@ func main() {
 		log.Fatalf("FATAL: Could not connect to database: %v", err)
 	}
 	log.Println("Successfully connected to the database!")
-	defer dbConn.Close()
+	defer func(dbConn *sqlx.DB) {
+		err := dbConn.Close()
+		if err != nil {
+
+		}
+	}(dbConn)
 
 	//Connect Redis db
 	rdb, err := redis.Connect()
 	if err != nil {
 		log.Fatal("FATAL: Could not connected to Redis!")
 	}
-	defer rdb.Close()
+	defer func(rdb *redis2.Client) {
+		err := rdb.Close()
+		if err != nil {
+
+		}
+	}(rdb)
 
 	//Init mailer service
 	mailSvc := mailer.NewSMTPMailer()
@@ -56,15 +66,19 @@ func main() {
 	//Init repositories
 	userRepo := user.NewRepository(dbConn)
 	roleRepo := role.NewRepository(dbConn)
+	courseRepo := course.NewRepository(dbConn)
 
 	//Init services
 	authSvc := auth.NewService(userRepo, roleRepo, rdb, mailSvc)
+	courseSvc := course.NewService(courseRepo, rdb)
 
 	//Init handlers
 	authHandler := auth.NewHandler(authSvc)
+	courseHandler := course.NewHandler(courseSvc)
 
 	allHandler := router.HandleDependencies{
-		AuthHandler: authHandler,
+		AuthHandler:   authHandler,
+		CourseHandler: courseHandler,
 	}
 
 	mainRouter := router.NewRouter(allHandler)
